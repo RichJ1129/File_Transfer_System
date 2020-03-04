@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <iostream>
 
 struct sockaddr_in serv_addr;
 struct sockaddr_in cli_addr;
@@ -76,6 +77,17 @@ int acceptConnection(int socket) {
     return socketConnection;
 }
 
+void sendData(int socket) {
+    std::string filename;
+
+    std::cout << "What is the name of the file that you would like to transfer?" << std::endl;
+    std::cin >> filename;
+
+    filename = "PP.txt";
+
+
+}
+
 
 int main(int argc, char *argv[]) {
     int newSocket;
@@ -87,19 +99,10 @@ int main(int argc, char *argv[]) {
     bindSocket(argv, newSocket);
     listen(newSocket, 5);
     socketConnect = acceptConnection(newSocket);
+    sendData(socketConnect);
 
 
 
-//    newsockfd = accept(sockfd,
-//                       (struct sockaddr *) &cli_addr,
-//                       &clilen);
-//    if (newsockfd < 0)
-//        error("ERROR on accept");
-//
-//    FILE *dataFile;
-//    dataFile = fopen("PP.txt", "r");
-//
-//
     close(socketConnect);
     close(newSocket);
 
