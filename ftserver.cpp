@@ -77,15 +77,23 @@ int acceptConnection(int socket) {
     return socketConnection;
 }
 
-void sendData(int socket) {
+void sendData(int newSocket) {
     std::string filename;
 
     std::cout << "What is the name of the file that you would like to transfer?" << std::endl;
     std::cin >> filename;
 
     filename = "PP.txt";
-
-
+    
+    int ch = 0;
+    
+    File *myFile;
+    myfile = fopen(filename, "a");
+    int words;
+    read(newSocket, &words, sizeof(int));
+    
+    while(ch != words) {}
+    
 }
 
 
