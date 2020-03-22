@@ -2,7 +2,7 @@
 // Created by Richard Joseph on 2/24/20.
 //
 
-#include <cstdio>
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -10,16 +10,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <iostream>
 #include <ctype.h>
 #include <fcntl.h>
-#include <vector>
 #include <dirent.h>
-
-
-struct sockaddr_in serv_addr;
-struct sockaddr_in cli_addr;
-
 
 /* Function
  * Prints error message that is passed to it. Obtained
@@ -30,43 +23,10 @@ void error(char *msg) {
     exit(0);
 }
 
-char *getContents(char *fileName) {
-    char *source = NULL;
-
-    FILE *myFile = fopen(fileName, "r");
-
-    if(myFile == NULL) {
-        error("Unable to open the file");
-    }
-
-    if (myFile != NULL) {
-        if (fseek(myFile, 0L, SEEK_END) == 0) {
-            long bufferSize = ftell(myFile);
-
-            if(bufferSize == -1) {
-                error("Invalid File");
-            }
-
-            source = (char*) malloc(sizeof(char) * (bufferSize + 1));
-
-            if (fseek(myFile, 0L, SEEK_SET) != 0) {
-                error("Unable to read");
-            }
-
-            size_t newLength = fread(source, sizeof(char), bufferSize, myFile);
-
-            if (ferror(myFile) != 0){
-                fputs("Error reading file", stderr);
-            }
-            else {
-                source[newLength++] = "\0";
-            }
-        }
-    }
-
-    fclose(myFile);
-    return source;
-}
+/* Function
+ * Checks to see if the program has the correct amount of
+arguments when entered in the console. If it does not
+it will quit out of the program.*/
 
 void checkStart(int argc) {
     if (argc < 2) {
@@ -85,6 +45,7 @@ int dirContent(char *filePath[]) {
 
     if (d) {
         int i = 0;
+
         while ((dir = readdir(d)) != NULL) {
             if(dir->d_type == DT_REG) {
                 filePath[i] = dir->d_name;
@@ -99,102 +60,43 @@ int dirContent(char *filePath[]) {
     return size + numFiles;
 }
 
-int openSocket() {
-    int socketNew;
 
-    //socket(int domain, int type, int protocol)
-    socketNew = socket(AF_INET, SOCK_STREAM, 0);
+char *getContents(char *fileName) {
+    char *source = NULL;
 
-    if (socketNew < 0) {
-        error("Error opening the socket");
+    FILE *myFile = fopen(fileName, "r");
+
+    if (myFile == NULL) {
+        error("Unable to open the file");
     }
 
-    return socketNew;
-}
+    if (myFile != NULL) {
+        if (fseek(myFile, 0L, SEEK_END) == 0) {
+            long bufferSize = ftell(myFile);
 
-
-void bindSocket(char *port[], int socket) {
-    int portNum;
-
-    portNum = atoi(port[1]);
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portNum);
-
-    if (bind(socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        error("ERROR on binding");
-    }
-}
-
-int acceptConnection(int socket) {
-    socklen_t clilen;
-    int socketConnection;
-
-    clilen = sizeof(cli_addr);
-
-    socketConnection = accept(socket, (struct sockaddr *) &cli_addr, &clilen);
-
-    if (socketConnection < 0) {
-        error("Error with the accept");
-    }
-
-    return socketConnection;
-}
-
-void sendData(int newSocket) {
-    char buffer[1000];
-    memset(buffer, 0, sizeof(buffer));
-
-    sleep(3);
-
-    int ch = 0;
-
-    int fd = open("PP.txt", O_RDONLY);
-
-    while (true) {
-        int bytesRead = read(fd, buffer, sizeof(buffer) - 1);
-        if (bytesRead == 0) {
-            break;
-        }
-
-
-        if(bytesRead < 0) {
-            fprintf(stderr, "error\n");
-            return;
-        }
-
-        void *p = buffer;
-
-        while(bytesRead > 0) {
-            int bytesWrite = send(newSocket, p, sizeof(buffer), 0);
-            if (bytesWrite < 0) {
-                return;
+            if(bufferSize == -1) {
+                error("Invalid File");
             }
-            bytesRead -= bytesWrite;
-            p = (char*)p + bytesWrite;
+
+            source = malloc(sizeof(char) * (bufferSize + 1));
+
+            if (fseek(myFile, 0L, SEEK_SET) != 0) {
+                error("Unable to read");
+            }
+
+            size_t newLength = fread(source, sizeof(char), bufferSize, myFile);
+
+            if (ferror(myFile) != 0){
+                fputs("Error reading file", stderr);
+            }
+            else {
+                source[newLength++] = '\0';
+            }
         }
-        memset(buffer, 0, sizeof(buffer));
     }
-    memset(buffer, 0, sizeof(buffer));
-    strcpy(buffer, "__done__");
-    send(newSocket, buffer, sizeof(buffer),0);
-    close(newSocket);
 
-    printf("The file was received");
-}
-
-void sendDirectory(int data_socket, char ** files, int numFiles) {
-    sleep(3);
-
-    for (int i = 0; i < numFiles; i++){
-        send(data_socket, files[i], 100,0);
-    }
-    // send done message when done
-    char * done_message = "done";
-    send(data_socket, done_message, strlen(done_message),0);
-    // close socket and free address information
-    close(data_socket);
+    fclose(myFile);
+    return source;
 }
 
 
@@ -225,6 +127,7 @@ void numberClient(int newSocket, int num) {
         error("Number unable to be sent");
     }
 }
+
 
 void sendFile(int newSocket, char *fileName) {
     char *contents;
@@ -296,15 +199,15 @@ int createServer(int portNum) {
     server.sin_family = AF_INET;
     server.sin_port = htons(portNum);
     server.sin_addr.s_addr = INADDR_ANY;
-    int optval = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof optval);
+    int optional = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optional, sizeof(optional));
 
     if(bind(sockfd, (struct sockaddr *) &server, sizeof(server)) < 0){
-        error("ERROR: unable to bind");
+        error("Unable to bind");
     }
 
     if(listen(sockfd, 10) < 0){
-        error("ERROR: unable to listen");
+        error("Unable to listen");
     }
 
     return sockfd;
@@ -312,23 +215,115 @@ int createServer(int portNum) {
 
 int main(int argc, char *argv[]) {
     int sockfd;
-    int newSocket;
-    int dataSock;
-    int serverPort;
+    int newsockfd;
+    int datasockfd;
+    int server_port_number;
     int pid;
 
     checkStart(argc);
 
-    serverPort = atoi(argv[1]);
-    sockfd = createServer(serverPort);
-    printf("Server is open on %d \n", serverPort);
+    server_port_number = atoi(argv[1]);
+    sockfd = createServer(server_port_number);
+    printf("Server is open on %d \n", server_port_number);
 
+    //Infinite loop until user presses CTRL + C
     while (1) {
-       newSocket = accept(sockfd, NULL, NULL);
-       if (new)
+       newsockfd = accept(sockfd, NULL, NULL);
+       if (newsockfd < 0) {
+           error("The socket was not able to accept");
+       }
+
+       pid = fork();
+
+       if (pid < 0) {
+           error("Error");
+       }
+
+       if (pid == 0){
+           close(sockfd);
+           int command = 0;
+           int data_port_number;
+           int newsock;
+
+           printf("Connecting from flip2.\n");
+           command = handleReq(newsockfd, &data_port_number);
+
+           if (command == 0) {
+               error("Error: Command is invalid.");
+           }
+
+           if (command == 1) {
+               char *path[100];
+               int i = 0;
+               int length = 0;
+
+               printf("List directory requested\n");
+
+               length = dirContent(path);
+               newsock = createServer(data_port_number);
+
+               datasockfd = accept(newsock, NULL, NULL);
+
+               if (datasockfd < 0) {
+                   error("Unable to create socket");
+               }
+
+               numberClient(datasockfd, length);
+
+
+               while (path[i] != NULL) {
+                   messageClient(datasockfd, path[i]);
+                   i++;
+               }
+
+               close(newsock);
+               close(datasockfd);
+               exit(0);
+           }
+
+           if(command == 2) {
+               int i = recNum(newsockfd);
+               char fileName[255] = "\0";
+
+               recMessage(newsockfd, fileName, i);
+
+               printf("File %s has been requested \n", fileName);
+
+               if (access(fileName, F_OK) == -1) {
+                   printf("File not found");
+                   char errorMessage[] = "NOT FOUND";
+                   numberClient(newsockfd, strlen(errorMessage));
+                   messageClient(newsockfd, errorMessage);
+
+                   close(newsockfd);
+                   close(datasockfd);
+                   exit(1);
+               } else {
+                   char message[] = "FOUND";
+                   numberClient(newsockfd, strlen(message));
+                   messageClient(newsockfd, message);
+               }
+
+
+               printf("Sending file %s", fileName);
+
+               newsock = createServer(data_port_number);
+               datasockfd = accept(newsock, NULL, NULL);
+
+               if (datasockfd < 0) {
+                   error("ERROR");
+               }
+
+
+               sendFile(datasockfd, fileName);
+
+               close(newsock);
+               close(datasockfd);
+               exit(0);
+           }
+           exit(0);
+       }
     }
-
-
 
     return 0;
 }

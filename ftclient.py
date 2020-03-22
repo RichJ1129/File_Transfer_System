@@ -1,9 +1,15 @@
 import sys
 import os
+import socket
+import struct
 from os import path
-from struct import *
 from time import sleep
-from socket import *
+
+"""Function
+Checks to see if the program has the correct amount of
+parameters when entered in the console. If it does not
+it will quit out of the program.
+"""
 
 
 def check_start():
@@ -11,7 +17,7 @@ def check_start():
         print("Error, Invalid number of args")
         exit(1)
 
-    elif (sys.argv[1] != "flip1" and sys.argv[1] != "flip2" and sys.argv[1] != "flip3"):
+    elif sys.argv[1] != "flip1" and sys.argv[1] != "flip2" and sys.argv[1] != "flip3":
         print("Error, Invalid Server")
         exit(1)
 
@@ -22,18 +28,29 @@ def check_start():
         print("Error, Invalid control port number")
         exit(1)
 
-    elif (sys.argv[3] != "-l" and sys.argv[3] != "-g"):
+    elif sys.argv[3] != "-l" and sys.argv[3] != "-g":
         print("Error, Invalid command")
         exit(1)
 
 
+"""Function
+Gets contents of the directory and splits them. 
+Prints each of them line by line. 
+"""
+
+
 def get_dir_list(new_socket):
     dir_list = new_socket.recv(4)
-    dir_list = unpack("I", dir_list)
-    rec = str(new_socket.recv(dir_list[0]), encoding="UTF-8").split("\x00")
+    dir_list = struct.unpack("I", dir_list)
+    file_list = str(new_socket.recv(dir_list[0]), encoding="UTF-8").split("\x00")
 
-    for items in rec:
-        print(items)
+    for file in enumerate(file_list):
+        print(file)
+
+"""Function
+Receives file and then writes the contents to a new
+file.
+"""
 
 
 def get_server_file(new_socket, file):
@@ -44,13 +61,15 @@ def get_server_file(new_socket, file):
     with open(file, "w") as new_file:
         new_file.write(buffer)
 
+
 def send_message(new_socket, message):
-    out_msg = bytes(message, encoding="UTF-8")
-    new_socket.sendall(out_msg)
+    msg = bytes(message, encoding="UTF-8")
+    new_socket.sendall(msg)
+
 
 def send_number(new_socket, num):
-    out_num = pack('i', num)
-    new_socket.send(out_num)
+    sent_num = struct.pack('i', num)
+    new_socket.send(sent_num)
 
 
 def send_to_server(new_socket, cmd, port_num):
@@ -59,147 +78,74 @@ def send_to_server(new_socket, cmd, port_num):
 
 
 def rec_server_msg(new_socket):
-    ds = new_socket.recv(4)
-    ds = unpack("I", ds)
-    return rec_full_msg(new_socket, ds[0])
+    b_rec = new_socket.recv(4)
+    b_rec = struct.unpack("I", b_rec)
+    return rec_full_msg(new_socket, b_rec[0])
+
+
+"""Function
+Works in conjunction with the above function
+to receive the message from the server.
+"""
 
 
 def rec_full_msg(new_socket, n):
-    rec = ""
+    full_msg = ""
 
-    while len(rec) < n:
-        packet = str(new_socket.recv(n - len(rec)), encoding="UTF-8")
-        if not packet:
-            return None
-        rec += packet
-    return rec
+    while len(full_msg) < n:
+        msg = str(new_socket.recv(n - len(full_msg)), encoding="UTF-8")
+        if not msg:
+            break
+        full_msg += msg
+    return full_msg
 
 
-
-def connect_server(host_name, port_num):
-    s = socket.socket(AF_INET, SOCK_STREAM)
+"""Function
+Starts the server. Code taken and modularized 
+from CS 372 Lecture 15.
+"""
+def start_server(host_name, port_num):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host_name, port_num))
     return s
 
 
-# def file_list(data_socket):
-#     file_name = data_socket.recv(100)
-#     while file_name != "done":
-#         print(file_name)
-#         file_name = data_socket.recv(100)
-
-
-def receive_file(s):
-    f = open(sys.argv[4], "w")
-    buffer = s.recv(1000)
-    while "__done__" not in str(buffer):
-        f.write(str(buffer))
-        buffer = s.recv(1000)
-
-
-
-
-
-# def get_file(new_socket, )
-
-
-# def get_list(data_socket):
-#     file_name = data_socket.recv(100)
-#     while file_name != "done":
-#         print(file_name)
-#         file_name = data_socket.recv(100)
-
-
-
-
-
-# def get_address():
-#     s = socket(AF_INET, SOCK_STREAM)
-#     s.connect(("8.8.8.8"), 80)
-#     return s.getsockname()[0]
-
-
-
-
-
-# def get_info(client_socket):
-#     if sys.argv[3] == "-l":
-#         print("File List:")
-#         port_num = 4
-#     elif sys.argv[3] == "-g":
-#         print("Requesting file {}".format(sys.argv[4]))
-#         port_num = 5
-#
-#     client_socket.send(sys.argv[port_num])
-#     client_socket.recv(1024)
-#
-#     if sys.argv[3] == "-l":
-#         client_socket.send("l")
-#     else:
-#         client_socket.send("g")
-#
-#     client_socket.recv(1024)
-#     client_socket.send(get_address())
-#     response = client_socket.recv(1024)
-#
-#     if response == "bad":
-#         print("Invalid Command")
-#         exit(1)
-#
-#     if sys.argv[3] == "-g":
-#         client_socket.send(sys.argv[4])
-#         response = client_socket.recv(1024)
-#         if response != "File found":
-#             print("File not found")
-#             return
-#     data_socket = connect_server()
-#
-#     if sys.argv[3] == "-l":
-#         get_list(data_socket)
-#     elif sys.argv[3] == "-g":
-#         recieve_file(data_socket)
-#
-#     data_socket.close()
-
-
 def main():
+    global file_name
     check_start()
     server_name = sys.argv[1] + ".engr.oregonstate.edu"
     server_port = int(sys.argv[2])
-    new_socket = connect_server(server_name, server_port)
-
-
+    data_port = int(sys.argv[-1])
     command = sys.argv[3]
-    port_number = sys.argv[-1]
 
+    new_socket = start_server(server_name, server_port)
 
-    send_to_server(new_socket, command, port_number)
+    send_to_server(new_socket, command, data_port)
 
     if command == "-l":
-        data_sock = connect_server(server_name, port_number)
-        print("Receiving Directory from {}. {}".format(sys.argv[1], port_number))
+        sleep(1)
+        data_sock = start_server(server_name, data_port)
+        print("Receiving Directory List:")
         get_dir_list(data_sock)
         data_sock.close()
 
     if command == "-g":
-        send_number(new_socket, len(sys.argv[4]))
-
-        send_message(new_socket, sys.argv[4] + "\0")
-
+        file_name = sys.argv[4]
+        send_number(new_socket, len(file_name))
+        send_message(new_socket, file_name + "\0")
         message = rec_server_msg(new_socket)
 
-        if message == "FILE NOT FOUND":
-            print("{}: {} says {}".format(sys.argv[4], sys.argv[1], port_number))
-        elif message == "FILE FOUND":
-            print("Receiving File")
+        if message == "NOT FOUND":
+            print("{}: {} says {}".format(sys.argv[4], sys.argv[1], data_port))
+        elif message == "FOUND":
+            print("Downloading File")
+            data_sock = start_server(sys.argv[1], data_port)
 
-            data_sock = connect_server(sys.argv[1], port_number)
-            get_server_file(data_sock, sys.argv[4])
-            print("Transfer Complete")
+            get_server_file(data_sock, file_name)
+            print("File Transfer Completed Successfully")
 
             data_sock.close()
     new_socket.close()
-
 
 
 if __name__ == '__main__':
